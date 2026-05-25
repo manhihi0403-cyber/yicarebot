@@ -1,0 +1,13 @@
+{
+  "branch_no": "3",
+  "branch_name": "구갈점",
+  "target_product_name": "걸음마학습기-한글판",
+  "target_product_no": "7563",
+  "search_keyword": "걸음마학습기",
+  "check_interval_seconds": 60,
+  "checks_per_run": 5,
+  "notify_when_available": true,
+  "notify_when_no_available": false,
+  "include_status_list": true,
+  "timezone": "Asia/Seoul"
+}
