@@ -168,23 +168,21 @@ def find_target_product_no(session: requests.Session, config: dict) -> str:
 def fetch_target_status(config: dict) -> dict:
     session = make_session()
     product_no = find_target_product_no(session, config)
-    product = post_json(
-        session,
-        AJAX_PRODUCT_URL,
-        {"product_no": product_no, "data_branch_no": config["branch_no"]},
-    )
+    product_name = config["target_product_name"]
 
-    if not isinstance(product, dict) or product.get("json_flag") == "N":
-        raise ValueError(f"잘못된 상품정보입니다: product_no={product_no}")
+    try:
+        rows = post_json(
+            session,
+            AJAX_NAME_PRODUCT_URL,
+            {"product_name": product_name, "data_branch_no": config["branch_no"]},
+        )
+    except requests.RequestException as exc:
+        print(f"상세 대여상태 조회 실패, 검색 목록으로 확인합니다: {exc}")
+        return fetch_search_status(session, config, product_no)
 
-    product_name = str(product.get("product_name") or config["target_product_name"])
-    rows = post_json(
-        session,
-        AJAX_NAME_PRODUCT_URL,
-        {"product_name": product_name, "data_branch_no": config["branch_no"]},
-    )
     if not isinstance(rows, list):
-        raise ValueError("장난감 상세 대여상태 응답 형식이 예상과 다릅니다.")
+        print("상세 대여상태 응답 형식이 예상과 달라 검색 목록으로 확인합니다.")
+        return fetch_search_status(session, config, product_no)
 
     normalized_rows = []
     for row in rows:
@@ -205,11 +203,51 @@ def fetch_target_status(config: dict) -> dict:
     return {
         "product_no": product_no,
         "product_name": product_name,
-        "area": strip_html(product.get("str_catename2")),
-        "age": strip_html(product.get("product_age1")),
+        "area": "",
+        "age": "",
         "branch_name": config["branch_name"],
         "branch_no": config["branch_no"],
         "rows": normalized_rows,
+        "available_rows": available_rows,
+    }
+
+
+def fetch_search_status(session: requests.Session, config: dict, product_no: str) -> dict:
+    target = normalize_product_name(config["target_product_name"])
+    products = search_products(session, config)
+    product = next(
+        (
+            item
+            for item in products
+            if item["product_no"] == product_no
+            or normalize_product_name(item["product_name"]) == target
+        ),
+        None,
+    )
+    if product is None:
+        raise ValueError(
+            f"{config['branch_name']}에서 '{config['target_product_name']}' 상품을 찾지 못했습니다."
+        )
+
+    row = {
+        "product_no": product["product_no"],
+        "barcode": f"상품번호 {product['product_no']}",
+        "status": f"대여가능 {product['available_count']}",
+        "returndate": "",
+        "memo": "검색 목록 기준",
+    }
+    available_rows = [row] if product["available_count"] > 0 else []
+    if not available_rows:
+        row["status"] = "대여가능 0"
+
+    return {
+        "product_no": product["product_no"],
+        "product_name": config["target_product_name"],
+        "area": product["area"],
+        "age": product["age"],
+        "branch_name": config["branch_name"],
+        "branch_no": config["branch_no"],
+        "rows": [row],
         "available_rows": available_rows,
     }
 
