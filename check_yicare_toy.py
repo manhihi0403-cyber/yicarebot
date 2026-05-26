@@ -61,10 +61,15 @@ def make_session() -> requests.Session:
     session.headers.update(
         {
             "User-Agent": (
-                "Mozilla/5.0 (compatible; YicareToyReservationChecker/1.0; "
-                "+https://github.com/actions)"
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/125.0.0.0 Safari/537.36"
             ),
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Origin": BASE_URL,
             "Referer": TOY_SEARCH_URL,
+            "X-Requested-With": "XMLHttpRequest",
         }
     )
     return session
@@ -167,6 +172,7 @@ def find_target_product_no(session: requests.Session, config: dict) -> str:
 
 def fetch_target_status(config: dict) -> dict:
     session = make_session()
+    prime_session(session)
     product_no = find_target_product_no(session, config)
     product_name = config["target_product_name"]
 
@@ -210,6 +216,14 @@ def fetch_target_status(config: dict) -> dict:
         "rows": normalized_rows,
         "available_rows": available_rows,
     }
+
+
+def prime_session(session: requests.Session) -> None:
+    try:
+        response = session.get(TOY_SEARCH_URL, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        print(f"검색 페이지 사전 접속 실패, 계속 진행합니다: {exc}")
 
 
 def fetch_search_status(session: requests.Session, config: dict, product_no: str) -> dict:
